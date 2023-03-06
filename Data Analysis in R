@@ -1,0 +1,110 @@
+```r
+#importing the data into the workspace##
+
+bike_sharing <- read.csv("london_merged.csv")
+head(bike_sharing)
+View(bike_sharing)
+
+#installing the tidyverse##
+install.packages("tidyverse")
+library("tidyverse")
+require("tidyverse")
+
+#Reading some separate data to understand the relations##
+bike_sharing %>% 
+  select(timestamp, cnt) %>% 
+  filter(timestamp <= "2015-01-31 23:00:00") %>% 
+  arrange(cnt)
+
+str(bike_sharing)
+as.character(bike_sharing$timestamp)
+
+#splitting the timestamp column into date and time##
+library(dplyr)
+library(tidyr)
+
+bike_sharing <- bike_sharing %>% 
+  separate(timestamp,
+           into = c("date", "time"),
+           sep = " ",
+           remove = TRUE) %>% 
+  separate(date,
+           into = c("year", "month", "day"),
+           sep = "-",
+           remove = TRUE)
+
+# View the resulting data frame
+View(bike_sharing)
+
+#Data wrangled from the dates##
+table(bike_sharing$year)
+table(bike_sharing$month)
+
+View(sort(table(bike_sharing$month), decreasing = TRUE))
+
+bike_sharing %>% 
+  select(month) %>% 
+  count(month) %>% 
+  arrange(desc(n)) %>% 
+  View()
+
+#Joining the data into a clean dataset##
+
+library(stringr)
+
+replacement_values_weather <- c("1" = "clear", "2" = "scattered clouds", "3" = "broken clouds", "4" = "cloudy", "7" = "rain", "10" = "rain with thunderstorm", "26" = "snowfall", "94" = "freezing fog")
+replacement_values_season <- c("0" = "spring", "1" = "summer", "2" = "fall", "3" = "winter")
+
+bike_sharing_clean <- bike_sharing %>%
+  select(year, month, day, time, cnt, weather_code, season, t1) %>%
+  drop_na(weather_code) %>%
+  mutate(weather_code = str_replace_all(weather_code, replacement_values_weather)) %>% 
+  mutate(season = str_replace_all(season, replacement_values_season))
+
+bike_sharing_clean <- bike_sharing_clean %>%
+  rename(temp = t1) %>% 
+  rename(count = cnt)
+
+View(bike_sharing_clean)
+```
+
+#Data Visualization by variables to understand the relationship between them##
+
+
+library(ggplot2)
+
+    #observing the relation between the temperature and the bike rental count#
+ggplot(data = bike_sharing_clean, aes(temp,count)) + geom_point(alpha = 0.3, aes(color = temp)) + theme_bw() +
+  geom_smooth(method="loess", se=F) +
+  labs(title="Bike Count Vs Temperature", 
+       y="Bike Count", 
+       x="Temperature")
+       
+       
+#observing the relation between the time of the day and the bike rental, with the temperature variable#
+
+bike_sharing_clean$time <- as.POSIXct(bike_sharing_clean$time, format = "%H:%M:%S")
+pl <- ggplot(bike_sharing_clean, aes(time, count)) + geom_point(aes(color = temp), alpha = 0.5)
+pl + scale_color_continuous(low = '#55D8CE', high = '#FF6E2E') + theme_bw()
+
+
+#Relation of Bike Count through the seasons#
+
+ggplot(bike_sharing_clean,aes(factor(season),count)) + 
+  geom_boxplot(aes(color = factor(season))) + theme_bw() + 
+  labs(title = "Bike Count vs Season",
+       y = "Bike Count",
+       x = "Season")
+       
+       
+#Observing the distribution of the bike rentals through the months, including years 2015-2017#
+
+ggplot(bike_sharing_clean, aes(month, count, color = count)) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Month", y = "Count", color = "Count") +
+  scale_color_continuous(low = '#55D8CE', high = '#FF6E2E') + theme_bw()
+
+ggplot(bike_sharing_clean, aes(year, count, color = count)) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Years", y = "Count", color = "Count") +
+  scale_color_continuous(low = '#55D8CE', high = '#FF6E2E') + theme_bw()
